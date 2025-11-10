@@ -1,21 +1,43 @@
-import { getAllBookings, createBooking, getBookingById, updateBookingById, deleteBookingById } from "../models/bookingModel.js";
+// server/controllers/bookingController.js
+import {
+  getAllBookings,
+  createBooking,
+  getBookingById,
+  updateBookingById,
+  deleteBookingById,
+} from "../models/bookingModel.js";
 import { getTripById } from "../models/tripModel.js";
 
 export const getBookings = async (_req, res) => {
-  try { res.json(await getAllBookings()); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  try {
+    res.json(await getAllBookings());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 export const addBooking = async (req, res) => {
   const { trip_id, passenger_id } = req.body;
   const seats = req.body.seats ?? req.body.seats_reserved;
   try {
-    if (!trip_id || !passenger_id || !seats) return res.status(400).json({ message: "trip_id, passenger_id, seats are required" });
+    if (!trip_id || !passenger_id || !seats) {
+      return res.status(400).json({ message: "trip_id, passenger_id, seats are required" });
+    }
+    const seatsNum = Number(seats);
+    if (!Number.isInteger(seatsNum) || seatsNum <= 0) {
+      return res.status(400).json({ message: "seats must be a positive integer" });
+    }
+
     const trip = await getTripById(trip_id);
     if (!trip) return res.status(404).json({ message: "Trip not found" });
-    if (trip.seats_available < seats) return res.status(400).json({ message: "Not enough seats available" });
+    if (trip.status !== "Published") {
+      return res.status(400).json({ message: "Trip is not open for bookings" });
+    }
+    if (Number(trip.seats_available) < seatsNum) {
+      return res.status(422).json({ message: "Not enough seats available" });
+    }
 
-    const booking = await createBooking({ trip_id, passenger_id, seats });
+    const booking = await createBooking({ trip_id, passenger_id, seats: seatsNum });
     res.status(201).json(booking);
   } catch (err) {
     if (err?.code === "ER_DUP_ENTRY" || err?.errno === 1062) {
@@ -30,10 +52,12 @@ export const getBooking = async (req, res) => {
     const booking = await getBookingById(req.params.id);
     if (!booking) return res.status(404).json({ message: "Booking not found" });
     res.json(booking);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
-// ✅ NEW — ensure availability when increasing confirmed seats
+// ensure availability when increasing confirmed seats
 export const updateBooking = async (req, res) => {
   try {
     const id = req.params.id;
@@ -44,6 +68,12 @@ export const updateBooking = async (req, res) => {
     if (req.body.seats !== undefined) patch.seats = Number(req.body.seats);
     if (req.body.is_paid !== undefined) patch.is_paid = Number(req.body.is_paid) ? 1 : 0;
     if (req.body.status !== undefined) patch.status = req.body.status; // 'Confirmed' | 'Cancelled'
+    if (patch.status && !["Confirmed", "Cancelled"].includes(patch.status)) {
+      return res.status(400).json({ message: "status must be Confirmed | Cancelled" });
+    }
+    if (patch.seats !== undefined && (!Number.isInteger(patch.seats) || patch.seats <= 0)) {
+      return res.status(400).json({ message: "seats must be a positive integer" });
+    }
 
     // compute delta in confirmed seats
     const oldSeats = Number(existing.seats);
@@ -58,8 +88,11 @@ export const updateBooking = async (req, res) => {
     if (delta > 0) {
       const trip = await getTripById(existing.trip_id);
       if (!trip) return res.status(404).json({ message: "Trip not found" });
-      if (trip.seats_available < delta) {
-        return res.status(400).json({ message: "Not enough seats available for the update" });
+      if (trip.status === "Cancelled") {
+        return res.status(400).json({ message: "Cannot increase seats for a cancelled trip" });
+      }
+      if (Number(trip.seats_available) < delta) {
+        return res.status(422).json({ message: "Not enough seats available for the update" });
       }
     }
 
@@ -70,11 +103,12 @@ export const updateBooking = async (req, res) => {
   }
 };
 
-// ✅ NEW
 export const deleteBooking = async (req, res) => {
   try {
     const ok = await deleteBookingById(req.params.id);
     if (!ok) return res.status(404).json({ message: "Booking not found" });
     res.json({ message: "Booking deleted" });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };

@@ -1,18 +1,21 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Home from './pages/Home';
-import Trips from './pages/Trips';
-import Bookings from './pages/Bookings';
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import SearchTrips from './pages/SearchTrips';
+import TripDetails from './pages/TripDetails';
+import Header from './components/Header';
 
-function App() {
+export default function App() {
   return (
-    <Router>
+    <BrowserRouter>
+      <Header />
+      <section className="hero container fade-in">
+        <h1>Find a trip</h1>
+        <p>Search rides published by drivers and reserve your seat in seconds.</p>
+      </section>
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/trips" element={<Trips />} />
-        <Route path="/bookings" element={<Bookings />} />
+        <Route path="/" element={<SearchTrips />} />
+        <Route path="/trip/:id" element={<TripDetails />} />
       </Routes>
-    </Router>
+    </BrowserRouter>
   );
 }
-
-export default App;

@@ -1,3 +1,4 @@
+// server/models/userModel.js
 import pool from "../db.js";
 
 export const getAllUsers = async () => {
@@ -19,7 +20,6 @@ export const getUserById = async (id) => {
   return rows[0];
 };
 
-// ✅ NEW
 export const updateUserById = async (id, patch) => {
   const allowed = ["name", "email", "phone", "role"];
   const fields = [];
@@ -35,7 +35,6 @@ export const updateUserById = async (id, patch) => {
   await pool.query(`UPDATE users SET ${fields.join(", ")} WHERE id = ?`, values);
   return await getUserById(id);
 };
-
 
 export const deleteUserById = async (id) => {
   const [res] = await pool.query("DELETE FROM users WHERE id = ?", [id]);

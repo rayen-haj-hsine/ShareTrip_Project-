@@ -1,0 +1,67 @@
+import React, { useEffect, useState } from 'react';
+import { fetchTrips } from '../services/trips';
+import type { Trip } from '../Types';
+import TripCard from '../components/TripCard';
+
+export default function SearchTrips() {
+  const [origin, setOrigin] = useState('');
+  const [destination, setDestination] = useState('');
+  const [date, setDate] = useState('');
+  const [minSeats, setMinSeats] = useState<number | ''>('');
+  const [loading, setLoading] = useState(false);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true); setError(null);
+    try {
+      const params: any = {};
+      if (origin.trim()) params.origin = origin.trim();
+      if (destination.trim()) params.destination = destination.trim();
+      if (date) params.date = date;
+      if (minSeats !== '' && Number(minSeats) >= 0) params.minSeats = Number(minSeats);
+      const data = await fetchTrips(params);
+      setTrips(data);
+    } catch (e: any) {
+      setError(e?.response?.data?.error || e?.message || 'Failed to load trips');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  
+  return (
+    <section className="container stack">
+      <div className="card slide-up">
+        <div className="grid">
+          <input className="input" placeholder="Origin" value={origin} onChange={e => setOrigin(e.target.value)} />
+          <input className="input" placeholder="Destination" value={destination} onChange={e => setDestination(e.target.value)} />
+          <input className="input" type="date" value={date} onChange={e => setDate(e.target.value)} />
+          <input
+            className="input" type="number" min={0} placeholder="Min seats"
+            value={minSeats} onChange={e => setMinSeats(e.target.value === '' ? '' : Number(e.target.value))}
+          />
+        </div>
+        <div className="row" style={{ gap: 10, marginTop: 10 }}>
+          <button onClick={load} className="btn">Search</button>
+          <button
+            onClick={() => { setOrigin(''); setDestination(''); setDate(''); setMinSeats(''); load(); }}
+            className="btn ghost"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      {loading && <div className="card slide-up">Loading…</div>}
+      {error && <div className="card slide-up"><span className="badge danger">Error</span>&nbsp;{error}</div>}
+      {!loading && !error && trips.length === 0 && <div className="card slide-up">No trips found.</div>}
+
+      <div className="stack stagger">
+        {trips.map(t => <TripCard key={t.id} trip={t} />)}
+      </div>
+    </section>
+  );
+}

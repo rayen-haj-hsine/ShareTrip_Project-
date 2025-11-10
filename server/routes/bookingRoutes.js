@@ -1,3 +1,4 @@
+// server/routes/bookingRoutes.js
 import express from "express";
 import { getBookings, addBooking, getBooking, updateBooking, deleteBooking } from "../controllers/bookingController.js";
 

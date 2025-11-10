@@ -1,3 +1,4 @@
+// server/routes/tripRoutes.js
 import express from "express";
 import { getTrips, addTrip, getTrip, updateTrip, deleteTrip, updateSeats } from "../controllers/tripController.js";
 

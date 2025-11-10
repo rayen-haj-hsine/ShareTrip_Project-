@@ -1,3 +1,4 @@
+// server/models/bookingModel.js
 import pool from "../db.js";
 
 export const getAllBookings = async () => {
@@ -26,9 +27,9 @@ export const getBookingById = async (id) => {
   return rows[0];
 };
 
-// ✅ NEW – patch seats/is_paid/status
+// patch seats/is_paid/status
 export const updateBookingById = async (id, patch) => {
-  const allowed = ["seats", "is_paid", "status"]; // status: 'Confirmed' | 'Cancelled'
+  const allowed = ["seats", "is_paid", "status"]; // 'Confirmed' | 'Cancelled'
   const fields = [];
   const values = [];
   for (const key of allowed) {
@@ -44,7 +45,6 @@ export const updateBookingById = async (id, patch) => {
   return await getBookingById(id);
 };
 
-// ✅ NEW
 export const deleteBookingById = async (id) => {
   const [res] = await pool.query("DELETE FROM bookings WHERE id = ?", [id]);
   return res.affectedRows > 0;
