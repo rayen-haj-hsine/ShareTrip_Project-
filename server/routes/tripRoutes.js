@@ -1,17 +1,36 @@
-// server/routes/tripRoutes.js
 import express from "express";
-import { getTrips, addTrip, getTrip, updateTrip, deleteTrip, updateSeats } from "../controllers/tripController.js";
+import {
+  getTrips,
+  addTrip,
+  getTrip,
+  updateTrip,
+  deleteTrip,
+  updateSeats,
+  getMyBookingForTrip,
+  quitTrip
+} from "../controllers/tripController.js";
+import { verifyToken, requireDriver } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
 router.get("/", getTrips);
-router.post("/", addTrip);
+
+// Create trip (auth + driver-only)
+router.post("/", verifyToken, requireDriver, addTrip);
+
 router.get("/:id", getTrip);
 
-// ✅ NEW
+// Update trip (could also be protected if you want)
 router.put("/:id", updateTrip);
-router.delete("/:id", deleteTrip);
 
-// (Optional) legacy route — in your schema seats are derived, so this returns 400
+// Delete trip (auth + driver-only, must own trip)
+router.delete("/:id", verifyToken, requireDriver, deleteTrip);
+
+// not supported
 router.put("/update-seats", updateSeats);
+
+// Booking helpers (auth)
+router.get("/:id/my-booking", verifyToken, getMyBookingForTrip);
+router.post("/:id/quit", verifyToken, quitTrip);
 
 export default router;

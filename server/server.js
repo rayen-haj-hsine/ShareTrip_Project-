@@ -1,49 +1,50 @@
-// server.js
+// server/server.js
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
-
-import userRoutes from "./routes/userRoutes.js";
-import tripRoutes from "./routes/tripRoutes.js";
-import bookingRoutes from "./routes/bookingRoutes.js";
-
-// 📘 API docs imports
+import morgan from "morgan";
 import swaggerUi from "swagger-ui-express";
-import redoc from "redoc-express";
-import openapiSpec from "./docs/openapi.js"; // make sure this file exists & exports default
-
+import dotenv from "dotenv";
 dotenv.config();
 
+import tripRoutes from "./routes/tripRoutes.js";
+import bookingRoutes from "./routes/bookingRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+
+import openapiSpec from "./docs/openapi.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+
+
 const app = express();
-app.use(cors());
+
+// Middleware
+app.use(cors({ origin: process.env.CORS_ORIGIN || "*", credentials: true }));
 app.use(express.json());
+app.use(morgan("dev"));
 
-// --------------------
-// API routes
-// --------------------
-app.use("/api/users", userRoutes);
-app.use("/api/trips", tripRoutes);
-app.use("/api/bookings", bookingRoutes);
-
-// --------------------
-// API documentation
-// --------------------
-
-// Swagger UI (interactive)
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openapiSpec, { explorer: true }));
-
-// Raw OpenAPI JSON (also used by Redoc)
-app.get("/api-docs.json", (_req, res) => res.json(openapiSpec));
-
-// Redoc (read-only docs)
-app.get("/redoc", redoc({ title: "TripShare API Docs", specUrl: "/api-docs.json" }));
-
-// Optional landing
-app.get("/", (_req, res) => {
-  res.send(
-    'Transport API is running 🚀 — visit /api-docs/api-docs</a> or /redoc/redoc</a>'
-  );
+// Health check
+app.get("/api/health", (_req, res) => {
+  res.json({ status: "ok", ts: new Date().toISOString() });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Routes
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/trips", tripRoutes);
+app.use("/api/bookings", bookingRoutes);
+app.use("/api/users", userRoutes);
+
+// API docs
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openapiSpec));
+
+// Error handler
+app.use((err, _req, res, _next) => {
+  console.error(err);
+  res.status(err.status || 500).json({ error: err.message || "Internal Server Error" });
+});
+
+const port = Number(process.env.PORT) || 4000;
+app.listen(port, () => {
+  console.log(`TripShare API running on http://localhost:${port}`);
+  console.log(`Swagger docs: http://localhost:${port}/api/docs`);
+});

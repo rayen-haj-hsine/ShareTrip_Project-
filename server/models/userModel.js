@@ -1,27 +1,37 @@
-// server/models/userModel.js
 import pool from "../db.js";
 
 export const getAllUsers = async () => {
-  const [rows] = await pool.query("SELECT * FROM users");
+  const [rows] = await pool.query(
+    "SELECT id, name, email, phone, role, created_at FROM users"
+  );
   return rows;
 };
 
-export const createUser = async (user) => {
-  const { name, email, phone, role } = user;
+export const createUser = async ({ name, email, phone, role, password = null }) => {
   const [result] = await pool.query(
-    "INSERT INTO users (name, email, phone, role) VALUES (?, ?, ?, ?)",
-    [name, email, phone, role]
+    "INSERT INTO users (name, email, phone, role, password) VALUES (?, ?, ?, ?, ?)",
+    [name, email, phone, role, password]
   );
-  return { id: result.insertId, ...user };
+  return { id: result.insertId, name, email, phone, role };
 };
 
 export const getUserById = async (id) => {
+  const [rows] = await pool.query(
+    "SELECT id, name, email, phone, role, created_at FROM users WHERE id = ?",
+    [id]
+  );
+  return rows[0];
+};
+
+export const getRawUserById = async (id) => {
+  // Includes password (for internal use only)
   const [rows] = await pool.query("SELECT * FROM users WHERE id = ?", [id]);
   return rows[0];
 };
 
 export const updateUserById = async (id, patch) => {
-  const allowed = ["name", "email", "phone", "role"];
+  // Allow password updates as well; getters won't expose it
+  const allowed = ["name", "email", "phone", "role", "password"];
   const fields = [];
   const values = [];
   for (const key of allowed) {
@@ -39,4 +49,9 @@ export const updateUserById = async (id, patch) => {
 export const deleteUserById = async (id) => {
   const [res] = await pool.query("DELETE FROM users WHERE id = ?", [id]);
   return res.affectedRows > 0;
+};
+
+export const getUserByEmail = async (email) => {
+  const [rows] = await pool.query("SELECT * FROM users WHERE email = ?", [email]);
+  return rows[0];
 };

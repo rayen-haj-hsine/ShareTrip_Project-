@@ -107,64 +107,51 @@ const push = (arr, params, clause, ...vals) => {
   params.push(...vals);
 };
 
-export const searchTrips = async ({
-  origin,
-  destination,
-  date,          // YYYY-MM-DD
-  status = "Published",
-  driver_id,
-  minSeats,
-  page = 1,
-  pageSize = 10,
-}) => {
+export const searchTrips = async ({ origin, destination, date, status = "Published", driver_id, minSeats }) => {
   const where = [];
   const params = [];
 
-  if (origin)      push(where, params, "t.origin LIKE ?", `%${origin}%`);
-  if (destination) push(where, params, "t.destination LIKE ?", `%${destination}%`);
-  if (status)      push(where, params, "t.status = ?", status);
-  if (driver_id)   push(where, params, "t.driver_id = ?", Number(driver_id));
-  if (date)        push(where, params, "t.date_time BETWEEN ? AND ?", `${date} 00:00:00`, `${date} 23:59:59`);
+  // Normalize inputs
+  const normalize = (v) => (typeof v === "string" ? v.trim().toLowerCase() : v);
 
-  // minSeats on computed availability (reuse the same expression in WHERE)
-  if (minSeats !== undefined && minSeats !== null) {
+  if (origin) {
+    push(where, params, "LOWER(t.origin) LIKE ?", `%${normalize(origin)}%`);
+  }
+  if (destination) {
+    push(where, params, "LOWER(t.destination) LIKE ?", `%${normalize(destination)}%`);
+  }
+  if (status) {
+    push(where, params, "t.status = ?", status);
+  }
+  if (driver_id) {
+    push(where, params, "t.driver_id = ?", Number(driver_id));
+  }
+  if (date) {
+    // Expect YYYY-MM-DD format
+    push(where, params, "t.date_time BETWEEN ? AND ?", `${date} 00:00:00`, `${date} 23:59:59`);
+  }
+  if (minSeats !== undefined && minSeats !== null && !isNaN(Number(minSeats))) {
     push(
       where,
       params,
-      `(t.total_seats - IFNULL((SELECT SUM(b2.seats)
-                                 FROM bookings b2
-                                 WHERE b2.trip_id = t.id AND b2.status = 'Confirmed'), 0)) >= ?`,
+      `(t.total_seats - IFNULL((SELECT SUM(b2.seats) FROM bookings b2 WHERE b2.trip_id = t.id AND b2.status='Confirmed'), 0)) >= ?`,
       Number(minSeats)
     );
   }
 
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
-  const limit = Number(pageSize);
-  const offset = (Number(page) - 1) * limit;
 
   const [rows] = await pool.query(
     `
-    SELECT
-      t.id, t.driver_id, t.origin, t.destination, t.date_time, t.total_seats, t.price, t.status,
-      ${seatsAvailableExpr},
-      u.name AS driver_name
+    SELECT t.id, t.driver_id, t.origin, t.destination, t.date_time, t.total_seats, t.price, t.status,
+    ${seatsAvailableExpr}, u.name AS driver_name
     FROM trips t
     JOIN users u ON t.driver_id = u.id
     ${whereSql}
     ORDER BY t.date_time ASC
-    LIMIT ? OFFSET ?
-    `,
-    [...params, limit, offset]
-  );
-
-  const [[{ count }]] = await pool.query(
-    `
-    SELECT COUNT(*) AS count
-    FROM trips t
-    ${whereSql}
     `,
     params
   );
 
-  return { items: rows, page: Number(page), pageSize: limit, total: Number(count) };
+  return rows;
 };
